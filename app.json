@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Maranatha One",
+    "name": "AdventCompass",
     "slug": "maranatha-one",
     "scheme": "maranathaone",
     "version": "1.0.0",
@@ -20,7 +20,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png",

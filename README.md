@@ -1,4 +1,4 @@
-# Maranatha One
+# AdventCompass
 
 ![platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue)
 ![expo](https://img.shields.io/badge/Expo-SDK%2057-000020?logo=expo)

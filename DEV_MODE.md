@@ -1,6 +1,6 @@
 # Dev Mode
 
-Developer-facing map of Maranatha One: stack, feature-to-file table, content sourcing/
+Developer-facing map of AdventCompass: stack, feature-to-file table, content sourcing/
 licensing notes, and known constraints. See `README.md` for the project overview.
 
 This file is kept up to date as features are added — treat it as the map of what
@@ -37,6 +37,9 @@ exists and where, not a changelog of every edit.
 | Prayer requests | `app/(tabs)/prayer/` | schema: `prayer` table |
 | Health & Wellness (water in cups, exercise) | `app/(tabs)/more/health.tsx` + dashboard | `database/habits.ts`, `database/wellnessGoals.ts` |
 | Reminders/notifications | `app/(tabs)/more/notifications.tsx` | `database/reminders.ts`, `services/notifications.ts` |
+| Topical Verses (anxiety, grief, joy, etc.) | `app/(tabs)/more/topical-verses*` | `database/topicalVerses.ts` |
+| Children's Sermons (~30 object lessons) | `app/(tabs)/more/childrens-sermons*` | `database/childrensSermons.ts` |
+| AI Bible Assistant (offline, on-device LLM — in progress) | `app/(tabs)/more/ai-assistant.tsx` | `services/aiModel.ts` |
 
 ## Content sourcing and licensing notes
 
@@ -60,6 +63,13 @@ exists and where, not a changelog of every edit.
   should be kept in mind if this app is ever distributed beyond personal use.
 - **Fundamental Beliefs**: parsed from the GC's own 28 Fundamental Beliefs PDF (2015
   edition), in the user's library.
+- **Children's Sermons**: sourced from Haverhill SDA Church's public children's-sermon
+  archive (`haverhillma.adventistchurch.org`) — a real Adventist congregation's own
+  material, not a GC-blanket resource. The site itself says the notes are free to use and
+  modify, but there's no formal license grant (single author/congregation, not an org-wide
+  policy), so this app treats it the same personal-offline-use-only basis as the other
+  externally-sourced content here, not as freely redistributable. Attribution kept in the
+  in-app description text.
 
 ## Known constraints
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import type { StyleProp, TextStyle } from 'react-native';
 import * as Lucide from 'lucide-react-native';
 
@@ -27,6 +27,14 @@ function makeIcon(filledName: keyof typeof Ionicons.glyphMap, outlineName?: keyo
   };
 }
 
+// Ionicons' "pin" is a map/location-pin teardrop, not the pushpin/thumbtack shape people
+// actually mean by "pin this note" — FontAwesome5's "thumbtack" is the real thing.
+function makeFA5Icon(name: string) {
+  return function IconComponent({ size = 20, color, style }: IconProps) {
+    return <FontAwesome5 name={name} size={size} color={color} solid style={style} />;
+  };
+}
+
 // Two icons kept on lucide by explicit request — the Ionicons equivalents for these
 // specific concepts (prayer, note-taking) didn't read as well as the originals. Wrapped
 // (rather than re-exported directly) so their prop type lines up with every other icon
@@ -43,6 +51,7 @@ export const NotebookPen = fromLucide(Lucide.NotebookPen);
 export const Archive = makeIcon('archive');
 export const ArrowLeft = makeIcon('arrow-back');
 export const ArrowRight = makeIcon('arrow-forward');
+export const ArrowUp = makeIcon('arrow-up');
 export const Bell = makeIcon('notifications');
 export const BookHeart = makeIcon('heart-circle');
 export const Bookmark = makeIcon('bookmark', 'bookmark-outline');
@@ -62,6 +71,7 @@ export const Download = makeIcon('download');
 export const Droplets = makeIcon('water');
 export const Dumbbell = makeIcon('barbell');
 export const Flame = makeIcon('flame');
+export const Gift = makeIcon('gift');
 export const Grid3x3 = makeIcon('keypad');
 export const HandCoins = makeIcon('cash');
 export const Heart = makeIcon('heart', 'heart-outline');
@@ -80,7 +90,7 @@ export const MoreHorizontal = makeIcon('ellipsis-horizontal');
 export const Music = makeIcon('musical-notes');
 export const Palette = makeIcon('color-palette');
 export const Pencil = makeIcon('pencil');
-export const Pin = makeIcon('pin', 'pin-outline');
+export const Pin = makeFA5Icon('thumbtack');
 export const Plus = makeIcon('add');
 export const Search = makeIcon('search');
 export const Settings = makeIcon('settings');

@@ -40,7 +40,7 @@ export default function AboutScreen() {
             >
               <BookHeart size={32} color={theme.colors.primary} strokeWidth={1.75} />
             </View>
-            <Heading style={{ fontSize: theme.fontSize.xl }}>Maranatha One</Heading>
+            <Heading style={{ fontSize: theme.fontSize.xl }}>AdventCompass</Heading>
             <Label style={{ marginTop: 4 }}>Version {version}</Label>
           </View>
 

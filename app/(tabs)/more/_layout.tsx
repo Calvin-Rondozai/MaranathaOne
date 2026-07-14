@@ -61,6 +61,8 @@ export default function MoreStackLayout() {
       <Stack.Screen name="sabbath-school/[id]/[week]" options={{ title: '' }} />
       <Stack.Screen name="topical-verses" options={{ title: 'Topical Verses' }} />
       <Stack.Screen name="topical-verses/[topic]" options={{ title: '' }} />
+      <Stack.Screen name="childrens-sermons" options={{ title: "Children's Sermons" }} />
+      <Stack.Screen name="childrens-sermons/[id]" options={{ title: '' }} />
       <Stack.Screen name="ai-assistant" options={{ title: 'AI Bible Assistant' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="notifications" options={{ title: 'Reminders' }} />
