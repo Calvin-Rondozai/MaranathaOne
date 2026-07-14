@@ -36,18 +36,35 @@ export async function getVerseOfDay(
   );
 }
 
+// A small LRU-ish cache so re-visiting a chapter (swiping back and forth, returning to
+// "Continue Reading") skips the SQLite round-trip entirely. Capped so it can't grow
+// unbounded over a long session; eviction is just "oldest inserted" rather than true
+// least-recently-used, which is plenty for how few chapters are open at once.
+const CHAPTER_CACHE = new Map<string, Verse[]>();
+const CHAPTER_CACHE_MAX = 30;
+
 export async function getChapterVerses(
   db: SQLiteDatabase,
   translation: string,
   book: string,
   chapter: number
 ): Promise<Verse[]> {
-  return db.getAllAsync<Verse>(
+  const key = `${translation}|${book}|${chapter}`;
+  const cached = CHAPTER_CACHE.get(key);
+  if (cached) return cached;
+
+  const rows = await db.getAllAsync<Verse>(
     'SELECT * FROM bible WHERE translation = ? AND book = ? AND chapter = ? ORDER BY verse',
     translation,
     book,
     chapter
   );
+  if (CHAPTER_CACHE.size >= CHAPTER_CACHE_MAX) {
+    const oldestKey = CHAPTER_CACHE.keys().next().value;
+    if (oldestKey !== undefined) CHAPTER_CACHE.delete(oldestKey);
+  }
+  CHAPTER_CACHE.set(key, rows);
+  return rows;
 }
 
 export async function getVerseRange(

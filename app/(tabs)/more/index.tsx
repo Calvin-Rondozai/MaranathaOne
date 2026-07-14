@@ -6,6 +6,7 @@ import {
   BookHeart,
   BookMarked,
   BookOpen,
+  CalendarDays,
   HandCoins,
   HeartPulse,
   Info,
@@ -22,6 +23,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Label } from '@/components/ui/Typography';
 
 const MENU = [
+  { href: '/more/sabbath-school', Icon: CalendarDays, title: 'Sabbath School', subtitle: 'Adult Bible Study Guide, auto-updated' },
   { href: '/more/devotional', Icon: BookHeart, title: 'Devotions', subtitle: "Today's devotional & prayer prompts" },
   { href: '/more/reading-plans', Icon: BookOpen, title: 'Reading Plans', subtitle: 'John, Psalms, Proverbs, or your own' },
   { href: '/more/egw', Icon: BookMarked, title: 'Ellen G. White Books', subtitle: 'Steps to Christ, Desire of Ages & more' },

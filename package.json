@@ -23,6 +23,7 @@
     "expo-status-bar": "~57.0.0",
     "expo-system-ui": "~57.0.0",
     "expo-video": "~57.0.0",
+    "lucide-react-native": "^1.24.0",
     "moti": "^0.30.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

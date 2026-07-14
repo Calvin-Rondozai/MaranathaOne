@@ -51,9 +51,7 @@ export default function OffertoryReadingScreen() {
             {selected.verseEnd ? `-${selected.verseEnd}` : ''}
           </Body>
           <Body style={{ color: theme.colors.textMuted, fontSize: theme.fontSize.sm, marginTop: theme.spacing.sm }}>
-            Giving is worship, not a transaction — an offering back to God of what was always his. Whatever
-            you bring today, however small it feels, is received with joy. Give freely, give cheerfully, and
-            trust that he sees the heart behind the gift.
+            {selected.comment}
           </Body>
         </AnimatedCard>
 

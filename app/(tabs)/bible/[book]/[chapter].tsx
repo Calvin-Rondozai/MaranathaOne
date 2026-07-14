@@ -14,7 +14,7 @@ import { getBookmarksForChapter, toggleBookmark } from '@/database/bookmarks';
 import { getHighlightsForChapter, toggleHighlightColor, HIGHLIGHT_COLORS, HighlightColor } from '@/database/highlights';
 import { formatVerseRefMulti, getNotesForVerse, getVersesWithNotes } from '@/database/notes';
 import { getCrossReferences } from '@/database/crossReferences';
-import { hasCommentaryForVerse } from '@/database/sdaCommentary';
+import { getCommentaryVersesForChapter } from '@/database/sdaCommentary';
 import { getLocalizedBookName } from '@/database/bookNames';
 import { useReadingPosition } from '@/hooks/useReadingPosition';
 import { useBibleTranslation } from '@/hooks/useBibleTranslation';
@@ -60,6 +60,7 @@ export default function ChapterReaderScreen() {
   const [compareVerses, setCompareVerses] = useState<Map<number, string>>(new Map());
   const [showCompareSheet, setShowCompareSheet] = useState(false);
   const [crossRefVerse, setCrossRefVerse] = useState<number | null>(null);
+  const [commentaryVerses, setCommentaryVerses] = useState<Set<number>>(new Set());
 
   const isSelecting = selectedVerses.size > 0;
 
@@ -117,6 +118,7 @@ export default function ChapterReaderScreen() {
         setBookmarked(bookmarkSet);
         setHighlights(highlightMap);
         setVersesWithNotes(noteVerses);
+        setCommentaryVerses(getCommentaryVersesForChapter(book, chapter));
         setPosition({ book, chapter });
       } catch (error) {
         if (!cancelled) console.error('Failed to load chapter', error);
@@ -441,7 +443,7 @@ export default function ChapterReaderScreen() {
                       </View>
                     </PressableScale>
                   )}
-                  {hasCommentaryForVerse(book, chapter, v.verse) && (
+                  {commentaryVerses.has(v.verse) && (
                     <PressableScale
                       onPress={() =>
                         router.push({ pathname: '/more/commentary/[book]/[chapter]', params: { book, chapter: String(chapter) } })

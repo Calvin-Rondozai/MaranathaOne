@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS bible (
@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS egw_highlights (
   paragraph INTEGER NOT NULL,
   color TEXT NOT NULL,
   created_date TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sabbath_quarters (
+  code TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  human_date TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  data TEXT NOT NULL,
+  downloaded_at TEXT NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_habits_type_date ON habits (habit_type, date);

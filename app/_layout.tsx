@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { LogBox } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, LogBox } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { SQLiteProvider } from 'expo-sqlite';
+import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -22,6 +22,7 @@ import {
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { DATABASE_NAME, migrateDbIfNeeded } from '@/database/migrate';
 import { TabBarVisibilityProvider } from '@/hooks/useTabBarVisibility';
+import { syncSabbathSchool } from '@/services/sabbathSchoolSync';
 // Registers the foreground notification handler on every launch — reminders are
 // scheduled with the OS and survive restarts, but this in-memory handler config
 // (how a notification behaves while the app is open) must be set up each session.
@@ -75,9 +76,33 @@ export default function RootLayout() {
 }
 
 function RootReady({ onReady }: { onReady: () => void }) {
+  const db = useSQLiteContext();
+  const lastAttempt = useRef(0);
+
   useEffect(() => {
     onReady();
   }, [onReady]);
+
+  // "Sync whenever it connects to the internet" without a native background-fetch
+  // module (which needs a dev build we don't have working yet — see the reminders/
+  // notifications setup) means catching every point this app actually runs: cold
+  // launch, and whenever it's brought back to the foreground. A quarter rarely
+  // changes, so this is cheap — it no-ops instantly once the current quarter is
+  // already downloaded. True OS-driven background sync (while the app is fully
+  // closed) can be added later via expo-background-fetch once a dev build exists.
+  useEffect(() => {
+    const trySync = () => {
+      const now = Date.now();
+      if (now - lastAttempt.current < 60_000) return; // debounce rapid foreground flapping
+      lastAttempt.current = now;
+      syncSabbathSchool(db).catch(() => {});
+    };
+    trySync();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') trySync();
+    });
+    return () => sub.remove();
+  }, [db]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
