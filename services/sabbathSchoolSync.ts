@@ -1,6 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getKv, setKv } from '@/database/kv';
-import { hasQuarter, saveQuarter, SabbathBlock, SabbathDay, SabbathLesson, SabbathQuarterData } from '@/database/sabbathSchool';
+import {
+  hasQuarter,
+  quarterVariantId,
+  saveQuarter,
+  SabbathBlock,
+  SabbathDay,
+  SabbathLesson,
+  SabbathQuarterData,
+} from '@/database/sabbathSchool';
 
 // The official Sabbath School app (Adventech, for the GC Sabbath School & Personal
 // Ministries department) has no public API — but its content repo is public, unauthenticated,
@@ -8,7 +16,7 @@ import { hasQuarter, saveQuarter, SabbathBlock, SabbathDay, SabbathLesson, Sabba
 // Content itself carries a GC copyright notice restricting reproduction without written
 // authorization — this app only caches it locally for the signed-in user's own offline
 // reading, the same personal-use basis already applied to other copyrighted sources here.
-const REPO_BASE = 'https://raw.githubusercontent.com/Adventech/sabbath-school-lessons/stage/src/en';
+const REPO_ROOT = 'https://raw.githubusercontent.com/Adventech/sabbath-school-lessons/stage/src';
 const LAST_SYNC_KEY = 'sabbath_school_last_sync';
 const WEEKS_PER_QUARTER = 13;
 const DAYS_PER_WEEK = 7;
@@ -117,8 +125,10 @@ function cleanInline(text: string): string {
     .trim();
 }
 
-async function fetchQuarter(code: string): Promise<SabbathQuarterData | null> {
-  const infoRaw = await fetchText(`${REPO_BASE}/${code}/info.yml`);
+async function fetchQuarter(lang: string, code: string, edition: string): Promise<SabbathQuarterData | null> {
+  const folder = `${code}${edition}`;
+  const base = `${REPO_ROOT}/${lang}/${folder}`;
+  const infoRaw = await fetchText(`${base}/info.yml`);
   if (!infoRaw) return null;
   const info = parseYamlScalars(infoRaw);
 
@@ -128,7 +138,7 @@ async function fetchQuarter(code: string): Promise<SabbathQuarterData | null> {
     const days: SabbathDay[] = [];
     for (let day = 1; day <= DAYS_PER_WEEK; day++) {
       const dayCode = String(day).padStart(2, '0');
-      const raw = await fetchText(`${REPO_BASE}/${code}/${weekCode}/${dayCode}.md`);
+      const raw = await fetchText(`${base}/${weekCode}/${dayCode}.md`);
       if (!raw) continue;
       const parsed = parseDayFile(raw);
       if (parsed) days.push({ day, title: parsed.title, date: parsed.date, blocks: parsed.blocks });
@@ -139,7 +149,10 @@ async function fetchQuarter(code: string): Promise<SabbathQuarterData | null> {
   if (lessons.length === 0) return null;
 
   return {
+    id: quarterVariantId(lang, code, edition),
     code,
+    lang,
+    edition,
     title: info.title ?? code,
     description: info.description ?? '',
     humanDate: info.human_date ?? '',
@@ -151,23 +164,38 @@ async function fetchQuarter(code: string): Promise<SabbathQuarterData | null> {
 
 export type SyncResult = { synced: boolean; code?: string; reason?: string };
 
-// Called on app launch/foreground and from the manual Update button. Tries the current
-// calendar quarter first, then adjacent ones (the real quarter boundary is the last
-// Saturday of the prior month, and a new quarter's files sometimes land a few days
-// late) — first one that both fetches and isn't already downloaded wins.
+// Called on app launch/foreground and from the manual Update button — always the
+// standard English edition (the default everyone gets automatically). Other
+// languages/editions are opt-in downloads via syncSpecificQuarter, triggered from the
+// language picker, never automatically.
 export async function syncSabbathSchool(db: SQLiteDatabase, options: { force?: boolean } = {}): Promise<SyncResult> {
   const today = new Date();
   const candidates = [quarterCodeForDate(today), shiftQuarter(quarterCodeForDate(today), 1), shiftQuarter(quarterCodeForDate(today), -1)];
 
   for (const code of candidates) {
-    if (!options.force && (await hasQuarter(db, code))) continue;
-    const quarter = await fetchQuarter(code);
+    const id = quarterVariantId('en', code, '');
+    if (!options.force && (await hasQuarter(db, id))) continue;
+    const quarter = await fetchQuarter('en', code, '');
     if (!quarter) continue;
     await saveQuarter(db, quarter);
     await setKv(db, LAST_SYNC_KEY, new Date().toISOString());
     return { synced: true, code };
   }
   return { synced: false, reason: 'No new quarter available or offline' };
+}
+
+// Explicit, user-triggered download of a specific language/edition — used by the
+// Sabbath School screen's language picker, never called automatically.
+export async function syncSpecificQuarter(
+  db: SQLiteDatabase,
+  lang: string,
+  edition: string,
+  code: string = quarterCodeForDate(new Date())
+): Promise<SyncResult> {
+  const quarter = await fetchQuarter(lang, code, edition);
+  if (!quarter) return { synced: false, reason: 'Not available for this language/edition/quarter yet' };
+  await saveQuarter(db, quarter);
+  return { synced: true, code };
 }
 
 export async function getLastSyncTime(db: SQLiteDatabase): Promise<string | null> {

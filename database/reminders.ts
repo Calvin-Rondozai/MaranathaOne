@@ -9,6 +9,8 @@ export type ReminderType =
   | 'prayer_night'
   | 'bible_study'
   | 'devotional'
+  | 'chapter_a_day'
+  | 'sabbath_prep'
   | 'sabbath';
 
 export type ReminderDef = {
@@ -27,7 +29,7 @@ export const REMINDER_DEFS: ReminderDef[] = [
     label: 'Drink Water',
     kind: 'interval',
     defaultValue: '60',
-    title: 'Time to hydrate 💧',
+    title: 'Time to hydrate',
     body: 'Drink a glass of water.',
   },
   {
@@ -77,6 +79,23 @@ export const REMINDER_DEFS: ReminderDef[] = [
     defaultValue: '06:30',
     title: 'Devotional',
     body: "Today's devotional is ready.",
+  },
+  {
+    type: 'chapter_a_day',
+    label: 'Chapter a Day',
+    kind: 'time',
+    defaultValue: '06:00',
+    title: 'Chapter a Day',
+    body: "Today's chapter is ready — open the app to read it.",
+  },
+  {
+    type: 'sabbath_prep',
+    label: 'Sabbath Preparation',
+    kind: 'weekly',
+    weekday: 6, // Friday (1=Sunday..7=Saturday)
+    defaultValue: '15:00',
+    title: 'Prepare for the Sabbath',
+    body: 'Get your work in order — the Sabbath begins this evening.',
   },
   {
     type: 'sabbath',

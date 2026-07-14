@@ -7,22 +7,45 @@ import { ChevronLeft, ChevronRight } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { getQuarterData, SabbathLesson, SabbathQuarterData } from '@/database/sabbathSchool';
+import { findScriptureRefs } from '@/database/scriptureRefs';
+import { VersePopup, VerseRef } from '@/components/bible/VersePopup';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Heading, Label } from '@/components/ui/Typography';
 
 const DAY_NAMES = ['Sabbath', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+// Lesson prose is full of scripture references ("John 3:16", "Rom. 5:8") — make each one
+// tappable so it pops up right here instead of navigating away and leaving the lesson.
+function renderBlockText(text: string, linkColor: string, onPressRef: (ref: VerseRef) => void) {
+  const refs = findScriptureRefs(text);
+  if (refs.length === 0) return text;
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  refs.forEach((ref, i) => {
+    if (ref.start > cursor) nodes.push(text.slice(cursor, ref.start));
+    nodes.push(
+      <Body key={i} style={{ color: linkColor, textDecorationLine: 'underline' }} onPress={() => onPressRef({ book: ref.book, chapter: ref.chapter, verse: ref.verse })}>
+        {ref.text}
+      </Body>
+    );
+    cursor = ref.end;
+  });
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 export default function SabbathLessonReaderScreen() {
   const theme = useTheme();
   const db = useSQLiteContext();
   const navigation = useNavigation();
-  const { code, week: rawWeek } = useLocalSearchParams<{ code: string; week: string }>();
+  const { id, week: rawWeek } = useLocalSearchParams<{ id: string; week: string }>();
   const weekNumber = Number(rawWeek);
   const [quarter, setQuarter] = useState<SabbathQuarterData | null>(null);
+  const [popupRef, setPopupRef] = useState<VerseRef>(null);
 
   useEffect(() => {
-    if (code) getQuarterData(db, code).then(setQuarter);
-  }, [db, code]);
+    if (id) getQuarterData(db, id).then(setQuarter);
+  }, [db, id]);
 
   const lesson: SabbathLesson | undefined = quarter?.lessons.find((l) => l.week === weekNumber);
   const prevLesson = quarter?.lessons.find((l) => l.week === weekNumber - 1);
@@ -81,7 +104,7 @@ export default function SabbathLessonReaderScreen() {
                         color: theme.colors.onAccent,
                       }}
                     >
-                      {block.text}
+                      {renderBlockText(block.text, theme.colors.onAccent, setPopupRef)}
                     </Body>
                   </View>
                 );
@@ -97,7 +120,7 @@ export default function SabbathLessonReaderScreen() {
                     marginBottom: theme.spacing.sm,
                   }}
                 >
-                  {block.text}
+                  {renderBlockText(block.text, theme.colors.primary, setPopupRef)}
                 </Body>
               );
             })}
@@ -117,7 +140,7 @@ export default function SabbathLessonReaderScreen() {
           disabled={!prevLesson}
           onPress={() =>
             prevLesson &&
-            router.replace({ pathname: '/more/sabbath-school/[code]/[week]', params: { code: code ?? '', week: String(prevLesson.week) } })
+            router.replace({ pathname: '/more/sabbath-school/[id]/[week]', params: { id: id ?? '', week: String(prevLesson.week) } })
           }
           style={{ flex: 1, opacity: prevLesson ? 1 : 0.35 }}
         >
@@ -133,7 +156,7 @@ export default function SabbathLessonReaderScreen() {
           disabled={!nextLesson}
           onPress={() =>
             nextLesson &&
-            router.replace({ pathname: '/more/sabbath-school/[code]/[week]', params: { code: code ?? '', week: String(nextLesson.week) } })
+            router.replace({ pathname: '/more/sabbath-school/[id]/[week]', params: { id: id ?? '', week: String(nextLesson.week) } })
           }
           style={{ flex: 1, opacity: nextLesson ? 1 : 0.35 }}
         >
@@ -145,6 +168,7 @@ export default function SabbathLessonReaderScreen() {
           </View>
         </PressableScale>
       </View>
+      <VersePopup reference={popupRef} onClose={() => setPopupRef(null)} />
     </SafeAreaView>
   );
 }

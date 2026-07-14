@@ -1,18 +1,20 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView, Switch, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Bell, Check, Pin, Archive, Trash2, Minus, Plus } from '@/components/ui/Icon';
+import { Bell, Check, CheckCircle2, Pin, Archive, Trash2, Minus, MoreHorizontal, Plus, X } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import {
+  ChecklistItem,
   createNote,
   deleteNote,
   getNote,
   Note,
   NOTE_CATEGORIES,
   NoteCategory,
+  parseChecklist,
   setNoteReminder,
   toggleNoteArchived,
   toggleNotePinned,
@@ -29,6 +31,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Label } from '@/components/ui/Typography';
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const newChecklistId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export default function NoteEditorScreen() {
   const theme = useTheme();
@@ -38,12 +41,15 @@ export default function NoteEditorScreen() {
   const isNew = params.id === 'new';
 
   const [existing, setExisting] = useState<Note | null>(null);
+  const [loaded, setLoaded] = useState(isNew);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>((params.category as NoteCategory) || 'personal');
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(9);
   const [reminderMinute, setReminderMinute] = useState(0);
+  const [menuVisible, setMenuVisible] = useState(false);
   const linkedVerse = existing?.linked_verse ?? params.linkedVerse ?? null;
 
   useEffect(() => {
@@ -54,26 +60,64 @@ export default function NoteEditorScreen() {
       setTitle(note.title);
       setContent(note.content);
       setCategory(note.category);
+      setChecklist(parseChecklist(note.checklist));
       setReminderEnabled(!!note.reminder_enabled);
       if (note.reminder_time) {
         const [h, m] = note.reminder_time.split(':').map(Number);
         setReminderHour(h);
         setReminderMinute(m);
       }
+      setLoaded(true);
     });
   }, [db, isNew, params.id]);
 
+  // Persist to whichever row already exists (creating it on first content, the same
+  // way it'll be finalized on close) so nothing is lost if the note is backgrounded or
+  // swiped away without an explicit save action — the point of autosave.
+  const persist = useCallback(
+    async (data: { title: string; content: string; category: NoteCategory; checklist: ChecklistItem[] }) => {
+      if (existing) {
+        await updateNote(db, existing.id, { ...data, title: data.title.trim() || 'Untitled' });
+      } else {
+        const id = await createNote(db, { ...data, title: data.title.trim() || 'Untitled', linked_verse: linkedVerse });
+        setExisting({
+          id,
+          title: data.title,
+          content: data.content,
+          category: data.category,
+          linked_verse: linkedVerse,
+          pinned: 0,
+          archived: 0,
+          reminder_time: null,
+          reminder_enabled: 0,
+          checklist: null,
+          created_date: new Date().toISOString(),
+        });
+      }
+    },
+    [db, existing, linkedVerse]
+  );
+
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => {
+    if (!loaded) return;
+    if (!title.trim() && !content.trim() && checklist.length === 0 && !existing) return;
+    clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      persist({ title, content, category, checklist });
+    }, 700);
+    return () => clearTimeout(autosaveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, content, category, checklist, loaded]);
+
   const handleSave = useCallback(async () => {
-    if (!title.trim() && !content.trim()) {
+    clearTimeout(autosaveTimer.current);
+    if (!title.trim() && !content.trim() && checklist.length === 0) {
       router.back();
       return;
     }
-    let noteId = existing?.id ?? null;
-    if (isNew) {
-      noteId = await createNote(db, { title: title.trim() || 'Untitled', content, category, linked_verse: linkedVerse });
-    } else if (existing) {
-      await updateNote(db, existing.id, { title: title.trim() || 'Untitled', content, category });
-    }
+    await persist({ title, content, category, checklist });
+    const noteId = existing?.id ?? null;
     if (category === 'prayer' || existing?.category === 'prayer') refreshPrayerReminders(db).catch(() => {});
 
     if (noteId != null) {
@@ -94,7 +138,7 @@ export default function NoteEditorScreen() {
       }
     }
     router.back();
-  }, [db, isNew, existing, title, content, category, linkedVerse, reminderEnabled, reminderHour, reminderMinute]);
+  }, [db, existing, title, content, category, checklist, persist, reminderEnabled, reminderHour, reminderMinute]);
 
   const handleDelete = useCallback(async () => {
     if (existing) {
@@ -118,28 +162,22 @@ export default function NoteEditorScreen() {
     router.back();
   }, [db, existing]);
 
+  const addChecklistItem = () => setChecklist((items) => [...items, { id: newChecklistId(), text: '', done: false }]);
+  const updateChecklistText = (id: string, text: string) =>
+    setChecklist((items) => items.map((it) => (it.id === id ? { ...it, text } : it)));
+  const toggleChecklistDone = (id: string) =>
+    setChecklist((items) => items.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+  const removeChecklistItem = (id: string) => setChecklist((items) => items.filter((it) => it.id !== id));
+
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: isNew ? 'New Note' : 'Edit Note',
+      title: isNew && !existing ? 'New Note' : 'Note',
       headerRight: () => (
         <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          {!isNew && existing && (
-            <>
-              <PressableScale onPress={handleTogglePin} style={{ padding: theme.spacing.xs }}>
-                <Pin
-                  size={20}
-                  color={existing.pinned ? theme.colors.accent : theme.colors.text}
-                  fill={existing.pinned ? theme.colors.accent : 'transparent'}
-                  strokeWidth={1.75}
-                />
-              </PressableScale>
-              <PressableScale onPress={handleToggleArchive} style={{ padding: theme.spacing.xs }}>
-                <Archive size={20} color={theme.colors.text} strokeWidth={1.75} />
-              </PressableScale>
-              <PressableScale onPress={handleDelete} style={{ padding: theme.spacing.xs }}>
-                <Trash2 size={20} color={theme.colors.danger} strokeWidth={1.75} />
-              </PressableScale>
-            </>
+          {!!existing && (
+            <PressableScale onPress={() => setMenuVisible(true)} style={{ padding: theme.spacing.xs }}>
+              <MoreHorizontal size={22} color={theme.colors.text} strokeWidth={1.75} />
+            </PressableScale>
           )}
           <PressableScale onPress={handleSave} style={{ padding: theme.spacing.xs }}>
             <Check size={22} color={theme.colors.primary} strokeWidth={2.25} />
@@ -147,7 +185,7 @@ export default function NoteEditorScreen() {
         </View>
       ),
     });
-  }, [navigation, theme, isNew, existing, handleSave, handleDelete, handleTogglePin, handleToggleArchive]);
+  }, [navigation, theme, isNew, existing, handleSave]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={[]}>
@@ -238,6 +276,51 @@ export default function NoteEditorScreen() {
           )}
         </View>
 
+        <View
+          style={{
+            backgroundColor: theme.colors.surfaceMuted,
+            borderRadius: theme.radius.md,
+            padding: theme.spacing.sm + 2,
+            gap: theme.spacing.xs,
+          }}
+        >
+          {checklist.map((item) => (
+            <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <PressableScale onPress={() => toggleChecklistDone(item.id)} style={{ padding: theme.spacing.xs }}>
+                <CheckCircle2
+                  size={20}
+                  color={item.done ? theme.colors.primary : theme.colors.textFaint}
+                  fill={item.done ? theme.colors.primary : 'transparent'}
+                />
+              </PressableScale>
+              <TextInput
+                value={item.text}
+                onChangeText={(text) => updateChecklistText(item.id, text)}
+                placeholder="List item"
+                placeholderTextColor={theme.colors.textFaint}
+                style={{
+                  flex: 1,
+                  fontFamily: theme.fontFamily.sansRegular,
+                  fontSize: theme.fontSize.base,
+                  color: item.done ? theme.colors.textFaint : theme.colors.text,
+                  textDecorationLine: item.done ? 'line-through' : 'none',
+                }}
+              />
+              <PressableScale onPress={() => removeChecklistItem(item.id)} style={{ padding: theme.spacing.xs }}>
+                <X size={16} color={theme.colors.textFaint} />
+              </PressableScale>
+            </View>
+          ))}
+          <PressableScale onPress={addChecklistItem} scaleTo={0.98}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.xs }}>
+              <Plus size={18} color={theme.colors.primary} strokeWidth={2} />
+              <Body style={{ marginLeft: theme.spacing.xs, color: theme.colors.primary, fontFamily: theme.fontFamily.sansMedium }}>
+                Add checklist item
+              </Body>
+            </View>
+          </PressableScale>
+        </View>
+
         <TextInput
           value={content}
           onChangeText={setContent}
@@ -254,6 +337,68 @@ export default function NoteEditorScreen() {
           }}
         />
       </ScrollView>
+
+      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setMenuVisible(false)}>
+          <Pressable
+            style={{
+              marginTop: 'auto',
+              backgroundColor: theme.colors.background,
+              borderTopLeftRadius: theme.radius.xl,
+              borderTopRightRadius: theme.radius.xl,
+              padding: theme.spacing.lg,
+              paddingBottom: theme.spacing.xl,
+              gap: theme.spacing.xs,
+            }}
+          >
+            <PressableScale
+              onPress={() => {
+                setMenuVisible(false);
+                handleTogglePin();
+              }}
+              scaleTo={0.99}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.md }}>
+                <Pin
+                  size={20}
+                  color={existing?.pinned ? theme.colors.accent : theme.colors.text}
+                  fill={existing?.pinned ? theme.colors.accent : 'transparent'}
+                  strokeWidth={1.75}
+                />
+                <Body style={{ marginLeft: theme.spacing.sm, fontFamily: theme.fontFamily.sansMedium }}>
+                  {existing?.pinned ? 'Unpin' : 'Pin'}
+                </Body>
+              </View>
+            </PressableScale>
+            <PressableScale
+              onPress={() => {
+                setMenuVisible(false);
+                handleToggleArchive();
+              }}
+              scaleTo={0.99}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.md }}>
+                <Archive size={20} color={theme.colors.text} strokeWidth={1.75} />
+                <Body style={{ marginLeft: theme.spacing.sm, fontFamily: theme.fontFamily.sansMedium }}>Archive</Body>
+              </View>
+            </PressableScale>
+            <PressableScale
+              onPress={() => {
+                setMenuVisible(false);
+                handleDelete();
+              }}
+              scaleTo={0.99}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.md }}>
+                <Trash2 size={20} color={theme.colors.danger} strokeWidth={1.75} />
+                <Body style={{ marginLeft: theme.spacing.sm, fontFamily: theme.fontFamily.sansMedium, color: theme.colors.danger }}>
+                  Delete
+                </Body>
+              </View>
+            </PressableScale>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

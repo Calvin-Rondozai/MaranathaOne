@@ -21,8 +21,24 @@ export type Note = {
   archived: number;
   reminder_time: string | null;
   reminder_enabled: number;
+  checklist: string | null;
   created_date: string;
 };
+
+export type ChecklistItem = { id: string; text: string; done: boolean };
+
+export function parseChecklist(checklist: string | null): ChecklistItem[] {
+  if (!checklist) return [];
+  try {
+    return JSON.parse(checklist);
+  } catch {
+    return [];
+  }
+}
+
+export function stringifyChecklist(items: ChecklistItem[]): string | null {
+  return items.length ? JSON.stringify(items) : null;
+}
 
 export function formatVerseRef(book: string, chapter: number, verse: number): string {
   return `${book} ${chapter}:${verse}`;
@@ -64,14 +80,15 @@ export async function getNote(db: SQLiteDatabase, id: number): Promise<Note | nu
 
 export async function createNote(
   db: SQLiteDatabase,
-  input: { title: string; content: string; category: NoteCategory; linked_verse?: string | null }
+  input: { title: string; content: string; category: NoteCategory; linked_verse?: string | null; checklist?: ChecklistItem[] }
 ): Promise<number> {
   const result = await db.runAsync(
-    'INSERT INTO notes (title, content, category, linked_verse, pinned, archived, created_date) VALUES (?, ?, ?, ?, 0, 0, ?)',
+    'INSERT INTO notes (title, content, category, linked_verse, pinned, archived, checklist, created_date) VALUES (?, ?, ?, ?, 0, 0, ?, ?)',
     input.title,
     input.content,
     input.category,
     input.linked_verse ?? null,
+    stringifyChecklist(input.checklist ?? []),
     new Date().toISOString()
   );
   return result.lastInsertRowId;
@@ -80,13 +97,14 @@ export async function createNote(
 export async function updateNote(
   db: SQLiteDatabase,
   id: number,
-  input: { title: string; content: string; category: NoteCategory }
+  input: { title: string; content: string; category: NoteCategory; checklist?: ChecklistItem[] }
 ): Promise<void> {
   await db.runAsync(
-    'UPDATE notes SET title = ?, content = ?, category = ? WHERE id = ?',
+    'UPDATE notes SET title = ?, content = ?, category = ?, checklist = ? WHERE id = ?',
     input.title,
     input.content,
     input.category,
+    stringifyChecklist(input.checklist ?? []),
     id
   );
 }

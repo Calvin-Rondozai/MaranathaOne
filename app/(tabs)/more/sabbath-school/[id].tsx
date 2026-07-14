@@ -14,12 +14,12 @@ export default function SabbathQuarterLessonsScreen() {
   const theme = useTheme();
   const db = useSQLiteContext();
   const navigation = useNavigation();
-  const { code } = useLocalSearchParams<{ code: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [quarter, setQuarter] = useState<SabbathQuarterData | null>(null);
 
   useEffect(() => {
-    if (code) getQuarterData(db, code).then(setQuarter);
-  }, [db, code]);
+    if (id) getQuarterData(db, id).then(setQuarter);
+  }, [db, id]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: quarter?.title ?? 'Sabbath School' });
@@ -40,7 +40,7 @@ export default function SabbathQuarterLessonsScreen() {
         }
         renderItem={({ item }) => (
           <PressableScale
-            onPress={() => router.push({ pathname: '/more/sabbath-school/[code]/[week]', params: { code: code ?? '', week: String(item.week) } })}
+            onPress={() => router.push({ pathname: '/more/sabbath-school/[id]/[week]', params: { id: id ?? '', week: String(item.week) } })}
             scaleTo={0.99}
           >
             <View

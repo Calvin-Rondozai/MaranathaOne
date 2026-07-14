@@ -18,6 +18,9 @@ async function ensureNotesReminderColumns(db: SQLiteDatabase): Promise<void> {
   if (!names.has('reminder_enabled')) {
     await db.execAsync('ALTER TABLE notes ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0');
   }
+  if (!names.has('checklist')) {
+    await db.execAsync('ALTER TABLE notes ADD COLUMN checklist TEXT');
+  }
 }
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -28,6 +31,13 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   const needsBibleRebuild = !(await bibleTableHasTranslationColumn(db));
   if (needsBibleRebuild) {
     await db.execAsync('DROP TABLE IF EXISTS bible');
+  }
+
+  // sabbath_quarters gained a composite id (lang/edition support) — old rows are just a
+  // re-downloadable cache, so drop and let it recreate rather than a fiddly ALTER.
+  const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(sabbath_quarters)');
+  if (tableInfo.length > 0 && !tableInfo.some((c) => c.name === 'lang')) {
+    await db.execAsync('DROP TABLE IF EXISTS sabbath_quarters');
   }
 
   await db.execAsync(CREATE_TABLES_SQL);

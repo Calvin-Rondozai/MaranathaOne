@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS bible (
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS notes (
   archived INTEGER NOT NULL DEFAULT 0,
   reminder_time TEXT,
   reminder_enabled INTEGER NOT NULL DEFAULT 0,
+  checklist TEXT,
   created_date TEXT NOT NULL
 );
 
@@ -77,8 +78,13 @@ CREATE TABLE IF NOT EXISTS egw_highlights (
   created_date TEXT NOT NULL
 );
 
+-- id is "{lang}:{code}:{edition}" so the same quarter can be downloaded in more than
+-- one language/edition (e.g. English standard + English Easy Reading + Shona) at once.
 CREATE TABLE IF NOT EXISTS sabbath_quarters (
-  code TEXT PRIMARY KEY NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL,
+  code TEXT NOT NULL,
+  lang TEXT NOT NULL DEFAULT 'en',
+  edition TEXT NOT NULL DEFAULT '',
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   human_date TEXT NOT NULL,

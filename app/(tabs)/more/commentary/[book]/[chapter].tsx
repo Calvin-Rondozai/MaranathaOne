@@ -1,17 +1,18 @@
-import React, { useLayoutEffect, useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { getCommentaryChapter } from '@/database/sdaCommentary';
 import { findScriptureRefs } from '@/database/scriptureRefs';
+import { VersePopup, VerseRef } from '@/components/bible/VersePopup';
 import { Body, Heading, Label } from '@/components/ui/Typography';
 
 // Commentary text is full of scripture cross-references ("Psalm 33:6, 9", "Ephesians
-// 3:15") — make each one tappable, jumping to that verse in the Bible reader
-// (scrolled to and flash-highlighted there, same as cross-references elsewhere).
-function renderEntryText(text: string, linkColor: string) {
+// 3:15") — make each one tappable, popping up that verse right here instead of
+// navigating away and leaving the commentary.
+function renderEntryText(text: string, linkColor: string, onPressRef: (ref: VerseRef) => void) {
   const refs = findScriptureRefs(text);
   if (refs.length === 0) return text;
   const nodes: React.ReactNode[] = [];
@@ -22,12 +23,7 @@ function renderEntryText(text: string, linkColor: string) {
       <Body
         key={i}
         style={{ color: linkColor, textDecorationLine: 'underline' }}
-        onPress={() =>
-          router.push({
-            pathname: '/bible/[book]/[chapter]',
-            params: { book: ref.book, chapter: String(ref.chapter), verse: String(ref.verse) },
-          })
-        }
+        onPress={() => onPressRef({ book: ref.book, chapter: ref.chapter, verse: ref.verse })}
       >
         {ref.text}
       </Body>
@@ -45,6 +41,7 @@ export default function CommentaryEntriesScreen() {
   const book = decodeURIComponent(rawBook ?? '');
   const chapterNumber = Number(rawChapter);
   const chapter = useMemo(() => getCommentaryChapter(book, chapterNumber), [book, chapterNumber]);
+  const [popupRef, setPopupRef] = useState<VerseRef>(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: `${book} ${chapterNumber}` });
@@ -71,11 +68,12 @@ export default function CommentaryEntriesScreen() {
                 textAlign: 'justify',
               }}
             >
-              {renderEntryText(entry.content, theme.colors.primary)}
+              {renderEntryText(entry.content, theme.colors.primary, setPopupRef)}
             </Body>
           </View>
         ))}
       </ScrollView>
+      <VersePopup reference={popupRef} onClose={() => setPopupRef(null)} />
     </SafeAreaView>
   );
 }

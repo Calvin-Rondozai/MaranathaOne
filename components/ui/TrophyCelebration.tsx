@@ -78,7 +78,7 @@ export function TrophyCelebration({ active }: { active: boolean }) {
           <Trophy size={48} color={theme.colors.accent} strokeWidth={1.5} />
         </MotiView>
         <Body style={{ fontFamily: theme.fontFamily.sansSemiBold, fontSize: theme.fontSize.lg }}>
-          Plan Complete! 🎉
+          Plan Complete!
         </Body>
       </MotiView>
     </View>
