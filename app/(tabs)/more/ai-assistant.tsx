@@ -2,16 +2,17 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FlatList, Keyboard, Platform, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import { MotiView } from 'moti';
 import { Info, Sparkles, Download, ArrowUp } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { downloadModel, hasModel, DownloadProgress } from '@/services/aiModel';
 import { AI_INFERENCE_AVAILABLE, askAssistant, ChatMessage } from '@/services/aiAssistant';
+import { ensureSearchIndexBuilt } from '@/database/searchIndex';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Label } from '@/components/ui/Typography';
-
-const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+import { newLocalId } from '@/utils/localId';
 
 const GREETING: ChatMessage = {
   id: 'greeting',
@@ -32,8 +33,22 @@ function formatTime(date: Date): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-function TypingBubble() {
+// Cycled while waiting for the model's first token (prompt prefill on a 1B model can
+// take a few real seconds) — a plain three-dot bubble that never changes reads as
+// "frozen" past a couple of seconds, so the label rotates to keep it legible as progress.
+const THINKING_PHRASES = ['Thinking…', 'Searching the Bible, EGW & Commentary…', 'Putting it together…'];
+
+function ThinkingBubble() {
   const theme = useTheme();
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhraseIndex((i) => (i + 1) % THINKING_PHRASES.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <View
       style={{
@@ -44,18 +59,52 @@ function TypingBubble() {
         borderRadius: theme.radius.md,
         borderBottomLeftRadius: 4,
         padding: theme.spacing.sm + 2,
-        gap: 4,
+        gap: theme.spacing.xs,
       }}
     >
-      {[0, 1, 2].map((i) => (
-        <MotiView
-          key={i}
-          from={{ opacity: 0.3, translateY: 0 }}
-          animate={{ opacity: 1, translateY: -3 }}
-          transition={{ type: 'timing', duration: 350, loop: true, repeatReverse: true, delay: i * 120 }}
-          style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.textFaint }}
-        />
-      ))}
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        {[0, 1, 2].map((i) => (
+          <MotiView
+            key={i}
+            from={{ opacity: 0.3, translateY: 0 }}
+            animate={{ opacity: 1, translateY: -3 }}
+            transition={{ type: 'timing', duration: 350, loop: true, repeatReverse: true, delay: i * 120 }}
+            style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.textFaint }}
+          />
+        ))}
+      </View>
+      <Label style={{ color: theme.colors.textMuted }}>{THINKING_PHRASES[phraseIndex]}</Label>
+    </View>
+  );
+}
+
+function AssistantBubble({ text }: { text: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ alignSelf: 'flex-start', maxWidth: '85%', flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.xs }}>
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: theme.radius.pill,
+          backgroundColor: theme.colors.accentSoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Sparkles size={12} color={theme.colors.accent} strokeWidth={2} />
+      </View>
+      <View
+        style={{
+          backgroundColor: theme.colors.surfaceMuted,
+          borderRadius: theme.radius.md,
+          borderBottomLeftRadius: 4,
+          padding: theme.spacing.sm + 2,
+          flexShrink: 1,
+        }}
+      >
+        <Body style={{ color: theme.colors.text, lineHeight: theme.lineHeight.base }}>{text}</Body>
+      </View>
     </View>
   );
 }
@@ -63,14 +112,35 @@ function TypingBubble() {
 export default function AIAssistantScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const db = useSQLiteContext();
   const [modelReady, setModelReady] = useState(() => hasModel());
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [messages, setMessages] = useState<(ChatMessage & { at: number })[]>([{ ...GREETING, at: Date.now() }]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [indexingLabel, setIndexingLabel] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Indexing the app's content for search is a one-time cost (kept once built — see
+  // ensureSearchIndexBuilt), but a real one: parsing every EGW book and commentary
+  // volume takes a while on a phone. Running it here — right after the model is ready,
+  // with its own status line — means it's usually already done by the time someone
+  // finishes typing their first question, instead of silently eating that first answer.
+  useEffect(() => {
+    if (!modelReady || !AI_INFERENCE_AVAILABLE) return;
+    let cancelled = false;
+    ensureSearchIndexBuilt(db, (label) => {
+      if (!cancelled) setIndexingLabel(label);
+    }).finally(() => {
+      if (!cancelled) setIndexingLabel(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [modelReady, db]);
 
   // KeyboardAvoidingView's automatic behaviors are unreliable on Android inside a
   // navigator screen (doubly so in Expo Go, where the manifest-level windowSoftInputMode
@@ -104,9 +174,11 @@ export default function AIAssistantScreen() {
           >
             <Sparkles size={16} color={theme.colors.accent} strokeWidth={2} />
           </View>
-          <View>
-            <Body style={{ fontFamily: theme.fontFamily.serifSemiBold, fontSize: theme.fontSize.md }}>Hello C</Body>
-            <Label style={{ fontSize: 10, letterSpacing: 0.5 }}>AI BIBLE ASSISTANT</Label>
+          <View style={{ alignItems: 'center' }}>
+            <Body style={{ fontFamily: theme.fontFamily.serifSemiBold, fontSize: theme.fontSize.md, textAlign: 'center' }}>
+              Hello C
+            </Body>
+            <Label style={{ fontSize: 10, letterSpacing: 0.5, textAlign: 'center' }}>BIBLE ASSISTANT</Label>
           </View>
         </View>
       ),
@@ -115,7 +187,7 @@ export default function AIAssistantScreen() {
 
   useEffect(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-  }, [messages, sending]);
+  }, [messages, sending, streamingText]);
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -134,11 +206,31 @@ export default function AIAssistantScreen() {
     const question = input.trim();
     if (!question || sending) return;
     setInput('');
-    setMessages((prev) => [...prev, { id: newId(), role: 'user', text: question, at: Date.now() }]);
+    setMessages((prev) => [...prev, { id: newLocalId(), role: 'user', text: question, at: Date.now() }]);
     setSending(true);
-    const answer = await askAssistant(question);
-    setMessages((prev) => [...prev, { id: newId(), role: 'assistant', text: answer, at: Date.now() }]);
-    setSending(false);
+    setStreamingText('');
+    try {
+      await askAssistant(question, db, {
+        onToken: setStreamingText,
+        onSection: (sectionText) => {
+          // A long answer arrives as more than one section — each finished one becomes
+          // its own message immediately, and streaming resets for whatever comes next.
+          setMessages((prev) => [...prev, { id: newLocalId(), role: 'assistant', text: sectionText, at: Date.now() }]);
+          setStreamingText('');
+        },
+      });
+    } catch (error) {
+      // Without this, a native-module failure (OOM loading the ~800MB model, a search
+      // index error, etc.) would leave `sending` stuck true forever — the input never
+      // re-enables until the app restarts.
+      console.error('AI assistant failed', error);
+      setMessages((prev) => [
+        ...prev,
+        { id: newLocalId(), role: 'assistant', text: 'Something went wrong answering that — please try again.', at: Date.now() },
+      ]);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -158,8 +250,9 @@ export default function AIAssistantScreen() {
           >
             <Info size={16} color={theme.colors.accent} strokeWidth={1.75} style={{ marginTop: 2 }} />
             <Body style={{ flex: 1, marginLeft: theme.spacing.xs, fontSize: theme.fontSize.sm, color: theme.colors.onAccent }}>
-              Live answers need a development build (an on-device model, no internet at chat time). You can download
-              the model now so it's ready the moment that build exists.
+              {modelReady
+                ? "Model downloaded and ready. This banner stays until you're running a development build — Expo Go can't load the on-device model at all. Run npx expo prebuild then npx expo run:android (or run:ios) to install one."
+                : "Live answers need a development build (an on-device model, no internet at chat time). You can download the model now so it's ready the moment that build exists."}
             </Body>
           </View>
         )}
@@ -203,6 +296,14 @@ export default function AIAssistantScreen() {
           </View>
         )}
 
+        {modelReady && indexingLabel && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
+            <Label style={{ color: theme.colors.textMuted, flex: 1 }} numberOfLines={1}>
+              Preparing offline content… {indexingLabel}
+            </Label>
+          </View>
+        )}
+
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
@@ -210,7 +311,7 @@ export default function AIAssistantScreen() {
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.sm }}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-          ListFooterComponent={sending ? <TypingBubble /> : null}
+          ListFooterComponent={sending ? streamingText ? <AssistantBubble text={streamingText} /> : <ThinkingBubble /> : null}
           ListFooterComponentStyle={{ marginTop: theme.spacing.sm }}
           renderItem={({ item }) => (
             <View style={{ alignSelf: item.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>

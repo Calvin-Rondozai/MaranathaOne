@@ -43,3 +43,7 @@ export function getHymns(language: HymnalLanguage): Hymn[] {
 export function getHymn(language: HymnalLanguage, number: number): Hymn | undefined {
   return loadHymns(language).find((h) => h.number === number);
 }
+
+export function clearHymnCache(): void {
+  for (const key of Object.keys(HYMN_DATA)) delete HYMN_DATA[key as HymnalLanguage];
+}

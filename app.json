@@ -2,6 +2,7 @@
   "expo": {
     "name": "AdventCompass",
     "slug": "maranatha-one",
+    "owner": "rondozaicalvin",
     "scheme": "maranathaone",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,12 +11,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.maranathaone.app"
+      "bundleIdentifier": "com.rondozaicalvin.adventcompass"
     },
     "android": {
-      "package": "com.maranathaone.app",
+      "package": "com.rondozaicalvin.adventcompass",
       "adaptiveIcon": {
-        "backgroundColor": "#173347",
+        "backgroundColor": "#25516C",
         "foregroundImage": "./assets/ico.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -35,7 +36,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#173347",
+          "backgroundColor": "#25516C",
           "image": "./assets/ico.png",
           "imageWidth": 160
         }

@@ -82,10 +82,19 @@ export async function addExercise(db: SQLiteDatabase, date: string, minutes: num
   return nextValue;
 }
 
+// ponytail: bounded to ~14 months back so this query stays small (and able to use
+// idx_habits_type_date) no matter how long someone's been using the app — the habits
+// table only ever grows, and a real streak longer than that is vanishingly rare. Raise
+// the lookback if that ever stops being true.
+const STREAK_LOOKBACK_DAYS = 420;
+
 export async function getStreak(db: SQLiteDatabase, habitType: HabitType, fromDate: Date = new Date()): Promise<number> {
+  const cutoff = new Date(fromDate);
+  cutoff.setDate(cutoff.getDate() - STREAK_LOOKBACK_DAYS);
   const rows = await db.getAllAsync<{ date: string }>(
-    'SELECT date FROM habits WHERE habit_type = ? AND completed = 1 ORDER BY date DESC',
-    habitType
+    'SELECT date FROM habits WHERE habit_type = ? AND completed = 1 AND date >= ? ORDER BY date DESC',
+    habitType,
+    todayKey(cutoff)
   );
   const completedDates = new Set(rows.map((r) => r.date));
 
@@ -105,9 +114,12 @@ export async function getWeekCompletion(
   habitType: HabitType,
   fromDate: Date = new Date()
 ): Promise<WeekDay[]> {
+  const start = new Date(fromDate);
+  start.setDate(start.getDate() - 6);
   const rows = await db.getAllAsync<{ date: string }>(
-    'SELECT date FROM habits WHERE habit_type = ? AND completed = 1',
-    habitType
+    'SELECT date FROM habits WHERE habit_type = ? AND completed = 1 AND date >= ?',
+    habitType,
+    todayKey(start)
   );
   const completedDates = new Set(rows.map((r) => r.date));
 

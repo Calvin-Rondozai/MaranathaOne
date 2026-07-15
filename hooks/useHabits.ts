@@ -72,15 +72,13 @@ export function useHabits() {
     setExerciseMin(nextExercise);
 
     const nextStreaks: Record<HabitType, number> = { bible_study: 0, prayer: 0, water: 0, exercise: 0 };
-    for (const type of STREAK_TYPES) {
-      nextStreaks[type] = await getStreak(db, type);
-    }
+    const streakResults = await Promise.all(STREAK_TYPES.map((type) => getStreak(db, type)));
+    STREAK_TYPES.forEach((type, i) => (nextStreaks[type] = streakResults[i]));
     setStreaks(nextStreaks);
 
     const nextWeek = {} as Record<HabitType, WeekDay[]>;
-    for (const type of HABIT_TYPES) {
-      nextWeek[type] = await getWeekCompletion(db, type);
-    }
+    const weekResults = await Promise.all(HABIT_TYPES.map((type) => getWeekCompletion(db, type)));
+    HABIT_TYPES.forEach((type, i) => (nextWeek[type] = weekResults[i]));
     setWeek(nextWeek);
 
     setLoading(false);

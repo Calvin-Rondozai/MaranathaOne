@@ -18,7 +18,7 @@ export function BrandedSplash() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#173347',
+    backgroundColor: '#25516C',
     alignItems: 'center',
     justifyContent: 'center',
   },

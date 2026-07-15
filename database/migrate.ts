@@ -12,6 +12,17 @@ async function bibleTableHasTranslationColumn(db: SQLiteDatabase): Promise<boole
 async function ensureNotesReminderColumns(db: SQLiteDatabase): Promise<void> {
   const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(notes)');
   const names = new Set(columns.map((c) => c.name));
+  // pinned/archived shipped in the same schema change as reminder_time/reminder_enabled
+  // on older installs, but only the reminder columns got a backfill ALTER here — an
+  // install that predates all four would run every INSERT/UPDATE against a notes table
+  // still missing "archived", throwing "no such column: archived" the first time
+  // anything touches it (e.g. archiving a note).
+  if (!names.has('pinned')) {
+    await db.execAsync('ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!names.has('archived')) {
+    await db.execAsync('ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+  }
   if (!names.has('reminder_time')) {
     await db.execAsync('ALTER TABLE notes ADD COLUMN reminder_time TEXT');
   }

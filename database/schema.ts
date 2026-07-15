@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS bible (
@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS sabbath_highlights (
   block_index INTEGER NOT NULL,
   color TEXT NOT NULL,
   created_date TEXT NOT NULL
+);
+
+-- Full-text index the AI Assistant searches for grounding answers (Bible, EGW books,
+-- SDA Bible Commentary, hymns, devotionals). Populated lazily on first AI use (see
+-- database/searchIndex.ts) rather than during every migration, since most installs
+-- never touch the AI feature.
+CREATE VIRTUAL TABLE IF NOT EXISTS content_search USING fts5(
+  text, source UNINDEXED, ref UNINDEXED, title UNINDEXED,
+  tokenize = 'porter unicode61'
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_habits_type_date ON habits (habit_type, date);

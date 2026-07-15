@@ -180,8 +180,11 @@ export type PendingChecklistItem = { noteId: number; noteTitle: string; item: Ch
 // Powers the dashboard's checklist preview — the first few unchecked items across every
 // non-archived note that has a checklist, most-recent note first.
 export async function getPendingChecklistItems(db: SQLiteDatabase, limit = 5): Promise<PendingChecklistItem[]> {
+  // ponytail: capped at 50 notes scanned (not just `limit` items returned) — without
+  // this the query pulled every non-archived checklist note ever created, full title
+  // and content included, just to find the first `limit` unchecked items.
   const rows = await db.getAllAsync<Note>(
-    "SELECT * FROM notes WHERE archived = 0 AND checklist IS NOT NULL ORDER BY created_date DESC"
+    'SELECT * FROM notes WHERE archived = 0 AND checklist IS NOT NULL ORDER BY created_date DESC LIMIT 50'
   );
   const out: PendingChecklistItem[] = [];
   for (const row of rows) {

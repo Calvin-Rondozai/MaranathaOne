@@ -1,6 +1,7 @@
 import React from 'react';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import type { StyleProp, TextStyle } from 'react-native';
+import { View } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import * as Lucide from 'lucide-react-native';
 
 // A drop-in replacement for the lucide-react-native icons this app used to import —
@@ -64,7 +65,21 @@ export const ChevronDown = makeIcon('chevron-down');
 export const ChevronUp = makeIcon('chevron-up');
 export const ChevronLeft = makeIcon('chevron-back');
 export const ChevronRight = makeIcon('chevron-forward');
-export const Columns2 = makeIcon('git-compare');
+// Drawn with plain Views rather than an icon font — FontAwesome5's "columns" glyph was
+// a good semantic match (a box split in two) but its font file repeatedly failed to
+// load over the Metro dev server in practice. Two bordered boxes side by side reads the
+// same way and can't fail to fetch, since there's nothing to fetch.
+function ColumnsIcon({ size = 20, color = '#000', style }: IconProps) {
+  const height = size * 0.8;
+  const borderWidth = Math.max(1.5, size * 0.1);
+  return (
+    <View style={[{ width: size, height, flexDirection: 'row', gap: Math.max(1, size * 0.12) }, style as StyleProp<ViewStyle>]}>
+      <View style={{ flex: 1, borderWidth, borderColor: color, borderRadius: size * 0.08 }} />
+      <View style={{ flex: 1, borderWidth, borderColor: color, borderRadius: size * 0.08 }} />
+    </View>
+  );
+}
+export const Columns = ColumnsIcon;
 export const Compass = makeIcon('compass');
 export const Delete = makeIcon('backspace');
 export const Download = makeIcon('download');

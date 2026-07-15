@@ -45,9 +45,9 @@ import {
 import { showAlert } from '@/components/ui/AppAlert';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Label } from '@/components/ui/Typography';
+import { newLocalId as newChecklistId } from '@/utils/localId';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const newChecklistId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const splitParagraphs = (text: string) => text.split(/\n\n+/).filter((p) => p.trim().length > 0);
 
 export default function NoteEditorScreen() {
@@ -155,9 +155,14 @@ export default function NoteEditorScreen() {
   latestRef.current = { title, contentBefore, contentAfter, category, checklist };
   const persistRef = useRef(persist);
   persistRef.current = persist;
+  // Set once handleSave or handleDelete has already settled this note's fate, so the
+  // unmount flush below doesn't redundantly re-persist data handleSave just saved, or
+  // write a no-op UPDATE against a row handleDelete just removed.
+  const finalizedRef = useRef(false);
   useEffect(() => {
     return () => {
       clearTimeout(autosaveTimer.current);
+      if (finalizedRef.current) return;
       const data = latestRef.current;
       if (data.title.trim() || data.contentBefore.trim() || data.contentAfter.trim() || data.checklist.length > 0) {
         persistRef.current({
@@ -172,6 +177,7 @@ export default function NoteEditorScreen() {
 
   const handleSave = useCallback(async () => {
     clearTimeout(autosaveTimer.current);
+    finalizedRef.current = true;
     if (!title.trim() && !contentBefore.trim() && !contentAfter.trim() && checklist.length === 0) {
       router.back();
       return;
@@ -202,6 +208,7 @@ export default function NoteEditorScreen() {
 
   const handleDelete = useCallback(async () => {
     if (existing) {
+      finalizedRef.current = true;
       await cancelNoteReminder(db, existing.id);
       await deleteNote(db, existing.id);
       if (existing.category === 'prayer') refreshPrayerReminders(db).catch(() => {});

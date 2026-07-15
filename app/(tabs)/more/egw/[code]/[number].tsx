@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -6,7 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { ChevronLeft, ChevronRight, NotebookPen, Palette, X } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
-import { getEgwBook } from '@/database/egwBooks';
+import { EgwBook, getEgwBook } from '@/database/egwBooks';
 import { getEgwHighlightsForChapter, toggleEgwHighlightColor } from '@/database/egwHighlights';
 import { HIGHLIGHT_COLORS, HIGHLIGHT_HEX, HighlightColor } from '@/database/highlights';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -51,7 +51,18 @@ export default function EgwChapterReaderScreen() {
   const db = useSQLiteContext();
   const navigation = useNavigation();
   const { code, number } = useLocalSearchParams<{ code: string; number: string }>();
-  const book = useMemo(() => getEgwBook(code ?? ''), [code]);
+  const [book, setBook] = useState<EgwBook | undefined>(undefined);
+  // getEgwBook does a synchronous require()+JSON.parse the first time a given book is
+  // opened — some titles are 1MB+ of text — which would otherwise block the JS thread
+  // mid-render and freeze the navigation transition. Deferring it a tick lets that
+  // transition finish painting first; the book is cached after this, so revisiting the
+  // same book (a different chapter) resolves instantly.
+  useEffect(() => {
+    if (!code) return;
+    setBook(undefined);
+    const id = setTimeout(() => setBook(getEgwBook(code)), 0);
+    return () => clearTimeout(id);
+  }, [code]);
   const chapterNumber = Number(number);
   const chapter = book?.chapters.find((c) => c.number === chapterNumber);
   const prevChapter = book?.chapters.find((c) => c.number === chapterNumber - 1);

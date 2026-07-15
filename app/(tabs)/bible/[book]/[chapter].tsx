@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { runOnJS } from 'react-native-reanimated';
-import { ArrowLeft, Bookmark, Columns2, ChevronDown, Library, Link2, NotebookPen, Palette, X } from '@/components/ui/Icon';
+import { ArrowLeft, Bookmark, Columns, ChevronDown, Languages, Library, Link2, NotebookPen, Palette, X } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { getChapterVerses, Verse } from '@/database/bible';
@@ -89,7 +89,7 @@ export default function ChapterReaderScreen() {
           onPress={() => (compareTranslation ? setCompareTranslation(null) : setShowCompareSheet(true))}
           style={{ padding: theme.spacing.xs }}
         >
-          <Columns2 size={20} color={compareTranslation ? theme.colors.primary : theme.colors.text} strokeWidth={1.75} />
+          <Columns size={18} color={compareTranslation ? theme.colors.primary : theme.colors.text} />
         </PressableScale>
       ),
     });
@@ -320,8 +320,20 @@ export default function ChapterReaderScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.sm, gap: theme.spacing.md }}>
             <PressableScale onPress={() => setShowVersionSheet(true)} scaleTo={0.97}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Languages size={14} color={theme.colors.textMuted} />
                 <Label>{translation}</Label>
                 <ChevronDown size={12} color={theme.colors.textMuted} />
+              </View>
+            </PressableScale>
+            {/* Same toggle as the header's Columns icon — kept here too, labeled, since an
+                unlabeled header icon is easy to miss as "the compare feature" entirely. */}
+            <PressableScale
+              onPress={() => (compareTranslation ? setCompareTranslation(null) : setShowCompareSheet(true))}
+              scaleTo={0.97}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Columns size={14} color={theme.colors.primary} />
+                <Label style={{ color: theme.colors.primary }}>{compareTranslation ? 'Exit compare' : 'Compare'}</Label>
               </View>
             </PressableScale>
             {compareTranslation && (
@@ -446,7 +458,13 @@ export default function ChapterReaderScreen() {
                   {commentaryVerses.has(v.verse) && (
                     <PressableScale
                       onPress={() =>
-                        router.push({ pathname: '/more/commentary/[book]/[chapter]', params: { book, chapter: String(chapter) } })
+                        router.push({
+                          pathname: '/more/commentary/[book]/[chapter]',
+                          // fromVerse tells the commentary screen's back button to return here specifically —
+                          // it's reached by pushing into a different tab's own stack, so the default back
+                          // button would otherwise pop into the More tab's history, not this screen.
+                          params: { book, chapter: String(chapter), fromVerse: String(v.verse) },
+                        })
                       }
                       scaleTo={0.85}
                     >

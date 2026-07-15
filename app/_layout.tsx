@@ -106,13 +106,22 @@ function RootReady({ onReady }: { onReady: () => void }) {
   // already downloaded. True OS-driven background sync (while the app is fully
   // closed) can be added later via expo-background-fetch once a dev build exists.
   useEffect(() => {
+    let syncing = false;
     const trySync = () => {
       const now = Date.now();
-      if (now - lastAttempt.current < 60_000) return; // debounce rapid foreground flapping
+      // The 60s window only guards against rapid foreground flapping — it does nothing
+      // if a single sync (up to 2 languages x 2 quarters, each fetched day-by-day) is
+      // still genuinely in flight past that window on a slow connection, which would
+      // otherwise let a second overlapping sync start writing the same quarters at once.
+      if (syncing || now - lastAttempt.current < 60_000) return;
       lastAttempt.current = now;
+      syncing = true;
       syncSabbathSchool(db)
         .then(() => refreshSabbathSchoolReminder(db))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          syncing = false;
+        });
     };
     trySync();
     const sub = AppState.addEventListener('change', (state) => {

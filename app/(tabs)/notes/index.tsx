@@ -320,7 +320,11 @@ export default function NotesListScreen() {
         renderItem={({ item }) =>
           viewMode === 'grid' ? (
             <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-              {(item as Note[]).map((note) => renderCard(note, { flex: 1 }))}
+              {(item as Note[]).map((note) => (
+                <View key={note.id} style={{ flex: 1 }}>
+                  {renderCard(note)}
+                </View>
+              ))}
               {(item as Note[]).length === 1 && <View style={{ flex: 1 }} />}
             </View>
           ) : (

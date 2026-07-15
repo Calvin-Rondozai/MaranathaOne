@@ -72,6 +72,10 @@ export function hasCommentaryForVerse(book: string, chapter: number, verse: numb
 // Computes which verses in a chapter have commentary in one pass, so callers can do a
 // cheap Set lookup per verse during render instead of re-scanning entries (and
 // re-triggering the volume's lazy JSON load) on every single verse.
+export function clearCommentaryCache(): void {
+  for (const key of Object.keys(VOLUME_DATA)) delete VOLUME_DATA[key];
+}
+
 export function getCommentaryVersesForChapter(book: string, chapter: number): Set<number> {
   const ch = getCommentaryChapter(book, chapter);
   const verses = new Set<number>();

@@ -122,3 +122,10 @@ export function getEgwBook(code: string): EgwBook | undefined {
 export function getEgwChapter(code: string, number: number): EgwChapter | undefined {
   return loadBook(code)?.chapters.find((c) => c.number === number);
 }
+
+// The AI search index builder (database/searchIndex.ts) walks every book once to index
+// it — unlike normal reading, which only ever touches one book at a time — so it clears
+// the cache behind it afterward rather than leaving all ~48 books resident in memory.
+export function clearEgwCache(): void {
+  for (const key of Object.keys(BOOK_DATA)) delete BOOK_DATA[key];
+}
