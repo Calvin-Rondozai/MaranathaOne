@@ -1,5 +1,6 @@
-import React from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Check } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -14,11 +15,29 @@ type Props = {
   onClose: () => void;
 };
 
+// Plain overlay instead of RN's <Modal> — see VersePopup.tsx for why: Modal's separate
+// native Android Window causes a host-window redraw (visible as the bottom tab bar
+// "flicking") whenever it opens/closes.
 export function TranslationSheet({ visible, selected, onSelect, onClose }: Props) {
   const theme = useTheme();
 
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Animated.View
+      entering={FadeIn.duration(150)}
+      exiting={FadeOut.duration(150)}
+      style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]}
+    >
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={onClose}>
         <Pressable
           style={{
@@ -69,6 +88,6 @@ export function TranslationSheet({ visible, selected, onSelect, onClose }: Props
           })}
         </Pressable>
       </Pressable>
-    </Modal>
+    </Animated.View>
   );
 }

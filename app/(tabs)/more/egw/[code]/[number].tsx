@@ -52,16 +52,20 @@ export default function EgwChapterReaderScreen() {
   const navigation = useNavigation();
   const { code, number } = useLocalSearchParams<{ code: string; number: string }>();
   const [book, setBook] = useState<EgwBook | undefined>(undefined);
-  // getEgwBook does a synchronous require()+JSON.parse the first time a given book is
-  // opened — some titles are 1MB+ of text — which would otherwise block the JS thread
-  // mid-render and freeze the navigation transition. Deferring it a tick lets that
-  // transition finish painting first; the book is cached after this, so revisiting the
-  // same book (a different chapter) resolves instantly.
+  // getEgwBook reads the book's .datjson asset off disk the first time it's opened — some
+  // titles are 1MB+ of text — so it's genuinely async now rather than a same-tick
+  // require()+JSON.parse. The book is cached after this, so revisiting it (a different
+  // chapter) resolves instantly.
   useEffect(() => {
     if (!code) return;
     setBook(undefined);
-    const id = setTimeout(() => setBook(getEgwBook(code)), 0);
-    return () => clearTimeout(id);
+    let cancelled = false;
+    getEgwBook(code).then((b) => {
+      if (!cancelled) setBook(b);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [code]);
   const chapterNumber = Number(number);
   const chapter = book?.chapters.find((c) => c.number === chapterNumber);

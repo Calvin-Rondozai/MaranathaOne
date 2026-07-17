@@ -26,7 +26,8 @@ import {
 import { useTheme } from '@/theme/ThemeProvider';
 import { useDailyVerse } from '@/hooks/useDailyVerse';
 import { useHabits } from '@/hooks/useHabits';
-import { getGreeting, getTimeOfDay, formatLongDate } from '@/utils/greeting';
+import { useSabbathGreeting } from '@/hooks/useSabbathGreeting';
+import { getTimeOfDay, formatLongDate } from '@/utils/greeting';
 import { getChapterADay } from '@/database/chapterADay';
 import { getTodaysLesson, TodaysLesson } from '@/database/sabbathSchool';
 import { getLocalizedBookName } from '@/database/bookNames';
@@ -78,6 +79,7 @@ export default function HomeDashboard() {
   const [todaysLesson, setTodaysLesson] = useState<TodaysLesson | null>(null);
   const chapterOfDay = getChapterADay();
   const isNight = getTimeOfDay() === 'night';
+  const greeting = useSabbathGreeting();
 
   useEffect(() => {
     getTodaysLesson(db).then(setTodaysLesson);
@@ -112,7 +114,7 @@ export default function HomeDashboard() {
             <View>
               <Label style={{ color: 'rgba(255,255,255,0.7)' }}>{formatLongDate()}</Label>
               <Heading style={{ color: '#FFFFFF', fontSize: theme.fontSize.xxl, marginTop: 4 }}>
-                {getGreeting()}
+                {greeting}
               </Heading>
             </View>
             <View

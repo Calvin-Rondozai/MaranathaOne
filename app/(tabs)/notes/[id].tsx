@@ -196,7 +196,7 @@ export default function NoteEditorScreen() {
             'Note reminders need a development build. This will work once the app is installed as a dev/standalone build.'
           );
         } else {
-          const granted = await ensureNotificationSetup();
+          const granted = await ensureNotificationSetup(db);
           if (granted) await scheduleNoteReminder(db, noteId, title.trim() || 'Untitled', reminderTime);
         }
       } else {

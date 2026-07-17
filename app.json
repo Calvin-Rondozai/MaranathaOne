@@ -48,6 +48,12 @@
           "color": "#7C3AED"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to show an accurate Saturday sunset time so the Sabbath greeting ends at the right moment for your location."
+        }
+      ],
       "llama.rn"
     ],
     "experiments": {

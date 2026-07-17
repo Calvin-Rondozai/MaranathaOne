@@ -62,7 +62,7 @@ export default function NotificationsScreen() {
         );
         return;
       }
-      const granted = await ensureNotificationSetup();
+      const granted = await ensureNotificationSetup(db);
       if (!granted) {
         showAlert(
           'Notifications disabled',

@@ -1,5 +1,5 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type * as NotificationsModule from 'expo-notifications';
 import { getKv, setKv } from '@/database/kv';
@@ -29,7 +29,28 @@ if (notificationsAvailable) {
 
 const ANDROID_CHANNEL_ID = 'reminders';
 
-export async function ensureNotificationSetup(): Promise<boolean> {
+const EXACT_ALARM_PROMPT_KEY = 'exact_alarm_settings_prompted';
+
+// Android 12+ only fires scheduled reminders at their exact set time if the app holds the
+// SCHEDULE_EXACT_ALARM permission (declared in the manifest, but the user still has to flip it
+// on in system settings — there's no in-app grant dialog for it). Without it, expo-notifications
+// silently falls back to an inexact alarm that Doze/battery optimization can delay by minutes to
+// hours. Deep-link to that settings screen once so reminders land on time; harmless no-op on
+// versions where the permission doesn't apply.
+async function ensureExactAlarmsEnabled(db: SQLiteDatabase): Promise<void> {
+  if (Platform.OS !== 'android' || Platform.Version < 31) return;
+  const alreadyPrompted = await getKv(db, EXACT_ALARM_PROMPT_KEY);
+  if (alreadyPrompted === '1') return;
+  await setKv(db, EXACT_ALARM_PROMPT_KEY, '1');
+  try {
+    await Linking.sendIntent?.('android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
+  } catch {
+    // Some OEM builds don't expose this settings screen — reminders still work, just
+    // possibly inexact, so failing here should never block notification setup.
+  }
+}
+
+export async function ensureNotificationSetup(db: SQLiteDatabase): Promise<boolean> {
   if (!Notifications) return false;
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
@@ -42,6 +63,7 @@ export async function ensureNotificationSetup(): Promise<boolean> {
       name: 'Reminders',
       importance: Notifications.AndroidImportance.DEFAULT,
     });
+    await ensureExactAlarmsEnabled(db);
   }
   return finalStatus === 'granted';
 }

@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname } from 'expo-router';
 import { BookOpen, Home, MoreHorizontal, NotebookPen, HeartHandshake } from '@/components/ui/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -7,8 +7,16 @@ import { AnimatedTabIcon } from '@/components/navigation/AnimatedTabIcon';
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const { visible } = useTabBarVisibility();
+  const { visible: scrollVisible } = useTabBarVisibility();
+  const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  // Computed directly from the route on every render (instead of round-tripping through a
+  // separate context + useEffect in more/_layout.tsx) so the bar's display swap lands in the
+  // same render pass as the navigation transition — that one-render lag was the visible "flick"
+  // when opening a More sub-screen. Scroll-driven hiding (bible chapter reader) still goes
+  // through the context since that's genuinely gesture-driven, not route-driven.
+  const hiddenForMoreSubscreen = pathname.startsWith('/more') && pathname !== '/more';
+  const visible = scrollVisible && !hiddenForMoreSubscreen;
   // The system nav bar (3-button or gesture pill) sits below the screen's safe area —
   // insets.bottom already accounts for either case, so add it on top of our own
   // content height instead of using a fixed height that ignores it.

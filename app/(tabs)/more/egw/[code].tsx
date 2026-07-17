@@ -1,11 +1,11 @@
-import React, { useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { FlatList, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ChevronRight, Search } from '@/components/ui/Icon';
 
 import { useTheme } from '@/theme/ThemeProvider';
-import { getEgwBook } from '@/database/egwBooks';
+import { EgwBook, getEgwBook } from '@/database/egwBooks';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Body, Label } from '@/components/ui/Typography';
 
@@ -13,8 +13,19 @@ export default function EgwChapterListScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
   const { code } = useLocalSearchParams<{ code: string }>();
-  const book = useMemo(() => getEgwBook(code ?? ''), [code]);
+  const [book, setBook] = useState<EgwBook | undefined>(undefined);
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setBook(undefined);
+    getEgwBook(code ?? '').then((b) => {
+      if (!cancelled) setBook(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
 
   const chapters = useMemo(() => {
     const q = query.trim().toLowerCase();

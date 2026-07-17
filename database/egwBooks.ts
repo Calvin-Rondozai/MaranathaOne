@@ -1,3 +1,5 @@
+import { loadJsonAsset } from './loadJsonAsset';
+
 export type EgwChapter = { number: number; title: string; content: string };
 export type EgwBook = { code: string; title: string; author: string; chapters: EgwChapter[] };
 
@@ -53,74 +55,79 @@ export const EGW_BOOK_LIST: { code: string; title: string }[] = [
   { code: 'sdabc7a', title: 'S.D.A. Bible Commentary, vol. 7A (Appendix)' },
 ];
 
-// Each book is its own JSON file (some are large), lazily required so opening the app
-// doesn't parse every EGW book into memory — only the one the user actually opens.
+// Each book is its own .datjson file (some are large), loaded on demand so opening the app
+// doesn't parse every EGW book into memory — only the one the user actually opens. See
+// metro.config.js/loadJsonAsset.ts for why these aren't plain JSON requires.
+const BOOK_MODULES: Record<string, number> = {
+  sc: require('./egwSc.datjson'),
+  pp: require('./egwPp.datjson'),
+  pk: require('./egwPk.datjson'),
+  da: require('./egwDa.datjson'),
+  aa: require('./egwAa.datjson'),
+  gc: require('./egwGc.datjson'),
+  col: require('./egwCol.datjson'),
+  mb: require('./egwMb.datjson'),
+  mh: require('./egwMh.datjson'),
+  ed: require('./egwEd.datjson'),
+  ew: require('./egwEw.datjson'),
+  sl: require('./egwSl.datjson'),
+  slp: require('./egwSlp.datjson'),
+  ls: require('./egwLs.datjson'),
+  t1: require('./egwT1.datjson'),
+  t2: require('./egwT2.datjson'),
+  t3: require('./egwT3.datjson'),
+  t4: require('./egwT4.datjson'),
+  t5: require('./egwT5.datjson'),
+  t6: require('./egwT6.datjson'),
+  t7: require('./egwT7.datjson'),
+  t8: require('./egwT8.datjson'),
+  t9: require('./egwT9.datjson'),
+  adventhome: require('./egwAdventHome.datjson'),
+  cet: require('./egwCet.datjson'),
+  cthbh: require('./egwCthbh.datjson'),
+  darkness: require('./egwDarkness.datjson'),
+  diet: require('./egwDiet.datjson'),
+  heavenlove: require('./egwHeavenLove.datjson'),
+  lsjw: require('./egwLsjw.datjson'),
+  mcp1: require('./egwMcp1.datjson'),
+  mcp2: require('./egwMcp2.datjson'),
+  mtyp: require('./egwMtyp.datjson'),
+  prayer: require('./egwPrayer.datjson'),
+  sg1: require('./egwSg1.datjson'),
+  sg2: require('./egwSg2.datjson'),
+  sg3: require('./egwSg3.datjson'),
+  sg4: require('./egwSg4.datjson'),
+  sm3: require('./egwSm3.datjson'),
+  solemnappeal: require('./egwSolemnAppeal.datjson'),
+  ste: require('./egwSte.datjson'),
+  temperance: require('./egwTemperance.datjson'),
+  truerevival: require('./egwTrueRevival.datjson'),
+  tsbad: require('./egwTsbad.datjson'),
+  tssw: require('./egwTssw.datjson'),
+  voicesong: require('./egwVoiceSong.datjson'),
+  cptns: require('./egwCptns.datjson'),
+  evangelism: require('./egwEvangelism.datjson'),
+  sdabc7a: require('./egwSdabc7a.datjson'),
+};
+
 const BOOK_DATA: Partial<Record<string, EgwBook>> = {};
 
-function loadBook(code: string): EgwBook | undefined {
+async function loadBook(code: string): Promise<EgwBook | undefined> {
   if (!BOOK_DATA[code]) {
-    switch (code) {
-      case 'sc': BOOK_DATA.sc = require('./egwSc.json'); break;
-      case 'pp': BOOK_DATA.pp = require('./egwPp.json'); break;
-      case 'pk': BOOK_DATA.pk = require('./egwPk.json'); break;
-      case 'da': BOOK_DATA.da = require('./egwDa.json'); break;
-      case 'aa': BOOK_DATA.aa = require('./egwAa.json'); break;
-      case 'gc': BOOK_DATA.gc = require('./egwGc.json'); break;
-      case 'col': BOOK_DATA.col = require('./egwCol.json'); break;
-      case 'mb': BOOK_DATA.mb = require('./egwMb.json'); break;
-      case 'mh': BOOK_DATA.mh = require('./egwMh.json'); break;
-      case 'ed': BOOK_DATA.ed = require('./egwEd.json'); break;
-      case 'ew': BOOK_DATA.ew = require('./egwEw.json'); break;
-      case 'sl': BOOK_DATA.sl = require('./egwSl.json'); break;
-      case 'slp': BOOK_DATA.slp = require('./egwSlp.json'); break;
-      case 'ls': BOOK_DATA.ls = require('./egwLs.json'); break;
-      case 't1': BOOK_DATA.t1 = require('./egwT1.json'); break;
-      case 't2': BOOK_DATA.t2 = require('./egwT2.json'); break;
-      case 't3': BOOK_DATA.t3 = require('./egwT3.json'); break;
-      case 't4': BOOK_DATA.t4 = require('./egwT4.json'); break;
-      case 't5': BOOK_DATA.t5 = require('./egwT5.json'); break;
-      case 't6': BOOK_DATA.t6 = require('./egwT6.json'); break;
-      case 't7': BOOK_DATA.t7 = require('./egwT7.json'); break;
-      case 't8': BOOK_DATA.t8 = require('./egwT8.json'); break;
-      case 't9': BOOK_DATA.t9 = require('./egwT9.json'); break;
-      case 'adventhome': BOOK_DATA.adventhome = require('./egwAdventHome.json'); break;
-      case 'cet': BOOK_DATA.cet = require('./egwCet.json'); break;
-      case 'cthbh': BOOK_DATA.cthbh = require('./egwCthbh.json'); break;
-      case 'darkness': BOOK_DATA.darkness = require('./egwDarkness.json'); break;
-      case 'diet': BOOK_DATA.diet = require('./egwDiet.json'); break;
-      case 'heavenlove': BOOK_DATA.heavenlove = require('./egwHeavenLove.json'); break;
-      case 'lsjw': BOOK_DATA.lsjw = require('./egwLsjw.json'); break;
-      case 'mcp1': BOOK_DATA.mcp1 = require('./egwMcp1.json'); break;
-      case 'mcp2': BOOK_DATA.mcp2 = require('./egwMcp2.json'); break;
-      case 'mtyp': BOOK_DATA.mtyp = require('./egwMtyp.json'); break;
-      case 'prayer': BOOK_DATA.prayer = require('./egwPrayer.json'); break;
-      case 'sg1': BOOK_DATA.sg1 = require('./egwSg1.json'); break;
-      case 'sg2': BOOK_DATA.sg2 = require('./egwSg2.json'); break;
-      case 'sg3': BOOK_DATA.sg3 = require('./egwSg3.json'); break;
-      case 'sg4': BOOK_DATA.sg4 = require('./egwSg4.json'); break;
-      case 'sm3': BOOK_DATA.sm3 = require('./egwSm3.json'); break;
-      case 'solemnappeal': BOOK_DATA.solemnappeal = require('./egwSolemnAppeal.json'); break;
-      case 'ste': BOOK_DATA.ste = require('./egwSte.json'); break;
-      case 'temperance': BOOK_DATA.temperance = require('./egwTemperance.json'); break;
-      case 'truerevival': BOOK_DATA.truerevival = require('./egwTrueRevival.json'); break;
-      case 'tsbad': BOOK_DATA.tsbad = require('./egwTsbad.json'); break;
-      case 'tssw': BOOK_DATA.tssw = require('./egwTssw.json'); break;
-      case 'voicesong': BOOK_DATA.voicesong = require('./egwVoiceSong.json'); break;
-      case 'cptns': BOOK_DATA.cptns = require('./egwCptns.json'); break;
-      case 'evangelism': BOOK_DATA.evangelism = require('./egwEvangelism.json'); break;
-      case 'sdabc7a': BOOK_DATA.sdabc7a = require('./egwSdabc7a.json'); break;
-      default: return undefined;
-    }
+    const moduleId = BOOK_MODULES[code];
+    if (moduleId === undefined) return undefined;
+    BOOK_DATA[code] = await loadJsonAsset<EgwBook>(moduleId);
   }
   return BOOK_DATA[code];
 }
 
-export function getEgwBook(code: string): EgwBook | undefined {
+export function getEgwBook(code: string): Promise<EgwBook | undefined> {
   return loadBook(code);
 }
 
-export function getEgwChapter(code: string, number: number): EgwChapter | undefined {
-  return loadBook(code)?.chapters.find((c) => c.number === number);
+export async function getEgwChapter(code: string, number: number): Promise<EgwChapter | undefined> {
+  const book = await loadBook(code);
+  return book?.chapters.find((c) => c.number === number);
 }
 
 // The AI search index builder (database/searchIndex.ts) walks every book once to index

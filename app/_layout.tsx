@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, LogBox } from 'react-native';
 import { router, Stack, usePathname } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getKv } from '@/database/kv';
 import { BrandedSplash } from '@/components/ui/BrandedSplash';
+import { useTheme } from '@/theme/ThemeProvider';
 
 // moti re-exports a SafeAreaView from its own bundle that internally imports the
 // deprecated React Native one — the warning fires just from moti being loaded, not
@@ -85,6 +87,7 @@ export default function RootLayout() {
 
 function RootReady({ onReady }: { onReady: () => void }) {
   const db = useSQLiteContext();
+  const theme = useTheme();
   const pathname = usePathname();
   const lastAttempt = useRef(0);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
@@ -156,6 +159,11 @@ function RootReady({ onReady }: { onReady: () => void }) {
 
   return (
     <>
+      {/* Icon color must invert with the theme — dark icons render invisible on this app's
+          dark surfaces/headers, which is why the status bar (clock/battery/signal) was
+          disappearing. "auto" doesn't work here since it means "invert display's own color",
+          not "match app theme". */}
+      <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />

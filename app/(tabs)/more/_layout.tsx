@@ -1,32 +1,11 @@
-import { useEffect } from 'react';
-import { Stack, usePathname } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 
+// Hiding the bottom tab bar for More's sub-screens (content/reading screens where it's just
+// wasted space) is computed directly from the route in app/(tabs)/_layout.tsx — no local
+// state needed here.
 export default function MoreStackLayout() {
   const theme = useTheme();
-  const pathname = usePathname();
-  const { setVisible: setTabBarVisible } = useTabBarVisibility();
-
-  // Any screen under More other than its own menu should hide the bottom tab bar —
-  // these are content/reading screens (devotional, hymnal, EGW books, settings, etc.)
-  // where the tab bar is just wasted space. Centralized here instead of per-screen so
-  // every current and future More sub-screen gets this for free.
-  //
-  // This layout stays mounted even after you switch to a different tab (Home, Bible,
-  // Notes, Prayer), and usePathname() reports the *global* route — so without the
-  // startsWith guard, leaving More for another tab would still run this effect and
-  // force the tab bar hidden everywhere, since the last-seen pathname was some
-  // "/more/..." sub-screen. Only assert visibility while actually inside /more; once
-  // pathname moves elsewhere, explicitly restore it since only More's own sub-screens
-  // ever hide it.
-  useEffect(() => {
-    if (pathname.startsWith('/more')) {
-      setTabBarVisible(pathname === '/more');
-    } else {
-      setTabBarVisible(true);
-    }
-  }, [pathname, setTabBarVisible]);
 
   return (
     <Stack
